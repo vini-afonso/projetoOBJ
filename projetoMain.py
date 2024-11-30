@@ -47,9 +47,14 @@ temperaturas = []  # Lista para armazenar as temperaturas
 fluxos_de_calor = []
 velocidades_ventoinha = []
 
-# Função para calcular a velocidade da ventoinha (simulada)
+# Função para calcular a velocidade da ventoinha com base na temperatura
 def calcular_velocidade_ventoinha(temperatura):
-    return int(min(max((temperatura - 20) * 5, 0), 255))  # Mapeia 20°C a 0% e temperaturas maiores a até 255
+    if temperatura <= 26:
+        return 0  # Velocidade mínima
+    elif temperatura >= 42:
+        return 255  # Velocidade máxima
+    else:
+        return int((temperatura - 26) * (255 / (42 - 26)))  # Mapeia proporcionalmente
 
 try:
     while True:
@@ -75,15 +80,28 @@ try:
                 velocidade_ventoinha = calcular_velocidade_ventoinha(temperatura)
                 velocidades_ventoinha.append(velocidade_ventoinha)
 
-                # Publica os dados no servidor MQTT
-                mensagem = {
+                # Calcular Variação da Velocidade da Ventoinha
+                if len(velocidades_ventoinha) > 1:
+                    variacao_velocidade = velocidades_ventoinha[-1] - velocidades_ventoinha[-2]
+                else:
+                    variacao_velocidade = 0
+
+                # Publica os dados no tópico "sensor/temperature"
+                mensagem_sensor = {
                     "temperatura": temperatura,
                     "gradiente_temperatura": gradiente_temperatura,
-                    "fluxo_de_calor": fluxo_de_calor,
-                    "velocidade_ventoinha": velocidade_ventoinha,
+                    "fluxo_de_calor": fluxo_de_calor
                 }
-                client.publish("sensor/temperature", str(mensagem))
-                print(f"Mensagem publicada: {mensagem}")
+                client.publish("sensor/temperature", str(mensagem_sensor))
+                print(f"Mensagem publicada em sensor/temperature: {mensagem_sensor}")
+
+                # Publica os dados no tópico "fan/status"
+                mensagem_fan = {
+                    "velocidade": velocidade_ventoinha,
+                    "variacao_velocidade": variacao_velocidade
+                }
+                client.publish("fan/status", str(mensagem_fan))
+                print(f"Mensagem publicada em fan/status: {mensagem_fan}")
 
         time.sleep(1)  # Atraso para leitura
 
